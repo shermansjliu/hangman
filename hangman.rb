@@ -6,6 +6,7 @@ class GameController
         @guesses = 0
         @user_word = ''
         @answer = ''
+        @used_letters = []
     end
 
     public
@@ -36,6 +37,19 @@ class GameController
         displayText("Would you like to load a game? (y/n)")
     end
 
+    def play(guess)
+        if @used_letters.include?(guess)
+            displayText("You already played this letter")
+        else
+            @answer.split('').each_with_index { |char, index|
+                if guess == char.downcase
+                    @user_word[index] = guess
+                end
+            }
+            @used_letters.push(guess)
+        end
+    end
+
     private
     def from_json(file_name)
         data = JSON.parse(File.open("#{file_name}.JSON", "r").readline)
@@ -55,8 +69,6 @@ class GameController
         file.print(output)
         file.close()
     end
-
-
 end
 
 def win?(user_word, answer)
@@ -66,22 +78,14 @@ end
 def cleanGuess
     displayText("Put in a letter!")
     guess = gets.chomp.downcase
-    until guess.length == 1 and !(guess =~ /[0-9]/)
+    until guess.length == 1 and !(guess =~ /[0-9]/) or guess.downcase == 'save'
         guess = gets.chomp.downcase
     end
     return guess
 
 end
 
-def play(guess, answer, user_word)
 
-    answer.split('').each_with_index { |char, index|
-
-        if guess == char.downcase
-            user_word[index] = guess
-        end
-    }
-end
 
 def selectWord
     suitable_words = File.open('5desk.txt') { |file|
@@ -144,6 +148,7 @@ elsif load == 'n'
     gc.newGame()
 end
 
+displayText("Type 'save' at any point to save your game!")
 while gc.guesses > 0
     displayText('')
     puts gc.answer # TODO: Remove later, for debugging reasons
@@ -151,8 +156,15 @@ while gc.guesses > 0
     displayText("Your current status: #{gc.user_word.join('')}")
 
     guess = cleanGuess
+    if guess == 'save'
+        displayText("What would you like to name the file?")
+        file_name = gets.chomp()
+        gc.save(file_name)
+        displayText("File saved!")
+    else
+        gc.play(guess)
+    end
 
-    play(guess, gc.answer, gc.user_word)
     if win?(gc.user_word.join(''), gc.answer)
         displayText("You guessed the word #{gc.user_word.join('')}correctly!")
         break
