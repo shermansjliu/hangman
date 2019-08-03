@@ -1,7 +1,6 @@
 require 'json'
 class GameController
-    attr_accessor :guesses, :user_word, :answer
-    # TODO: Remove @answer from attr_reader
+    attr_accessor :guesses, :user_word, :answer, :used_letters
     def initialize
         @guesses = 0
         @user_word = ''
@@ -18,10 +17,19 @@ class GameController
 
     def save (file_name)
         if File.exists?("#{file_name}.JSON")
-            return "This file name is taken"
+            puts "Would you like to overwrite this file? (y/n)"
+            answer = gets.chomp.downcase
+            if answer == 'y'
+                file = File.open("#{file_name}.JSON", 'w')
+                puts to_json(file)
+            elsif answer == 'n'
+                puts "This file name is taken"
+            end
+
         else
-            to_json(file_name)
-            return "Your file is saved"
+            file = File.new("#{file_name}.JSON", 'w')
+            to_json(file)
+            puts "Your file is saved"
         end
     end
 
@@ -39,7 +47,11 @@ class GameController
 
     def play(guess)
         if @used_letters.include?(guess)
-            displayText("You already played this letter")
+            loop do
+                displayText("You already played this letter")
+                guess = cleanGuess
+                break if !@used_letters.include?(guess)
+            end
         else
             @answer.split('').each_with_index { |char, index|
                 if guess == char.downcase
@@ -47,24 +59,25 @@ class GameController
                 end
             }
             @used_letters.push(guess)
+                @guesses -= 1
         end
     end
 
     private
     def from_json(file_name)
-        data = JSON.parse(File.open("#{file_name}.JSON", "r").readline)
+        data = JSON.parse(File.open("#{file_name}.JSON", "r").readline())
         @guesses = data['guesses']
-        @user_word = data['user_word'].split('')
+        @user_word = data['user_word']
         @answer = data['answer']
+        @used_letters = data['used_letters']
     end
 
-    def to_json (file_name)
-        file = File.new("#{file_name}.JSON", 'w')
-        #convert j
+    def to_json (file)
         output = JSON.generate ({
             guesses: @guesses,
             user_word: @user_word,
-            answer: @answer
+            answer: @answer,
+            used_letters: @used_letters
             })
         file.print(output)
         file.close()
@@ -151,9 +164,9 @@ end
 displayText("Type 'save' at any point to save your game!")
 while gc.guesses > 0
     displayText('')
-    puts gc.answer # TODO: Remove later, for debugging reasons
     displayText("Guesses left: #{gc.guesses}")
     displayText("Your current status: #{gc.user_word.join('')}")
+    displayText("Used Letters: #{gc.used_letters.inspect()}")
 
     guess = cleanGuess
     if guess == 'save'
@@ -169,8 +182,14 @@ while gc.guesses > 0
         displayText("You guessed the word #{gc.user_word.join('')}correctly!")
         break
     end
-    gc.guesses -= 1
-end
 
-displayText("Better luck next time!")
-displayText("The word you were trying to guess was #{gc.answer}")
+end
+displayText("What is your final guess?")
+finalGuess = gets.chomp.downcase
+
+if win?(finalGuess, gc.answer)
+    displayText("You guessed the word #{gc.answer}correctly!")
+else
+    displayText("Better luck next time!")
+    displayText("You were trying to guess the word #{gc.answer}")
+end
